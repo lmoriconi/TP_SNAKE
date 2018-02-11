@@ -1,0 +1,433 @@
+//LENNY MORICONI
+
+//BUT : algorithme qui permet à un utilisateur de jouer au jeu du Snake. L'utilisateur contrôle un serpent d'une taille initiale de 3, qui lorsqu'il avale de la nourriture, grandit d'une case et marque 10 points. Lorsque le serpent heurte un mur ou son propre corps, la partie prend fin
+//ENTREE : un tableau t contenant le terrain, les coordonnées x et y de base du serpent et les coordonnées aléatoire de la nourriture
+//SORTIE : jeu du snake, score, score
+
+//CONSTANTES
+COLS 30             //colonnes
+ROWS 20             //lignes
+SNAKE_X 15          //position x de la tête au début
+SNAKE_Y 10          //position y de la tête au début
+SNAKE_LEN 3         //taille du corps du serpent au début
+MAXLENGTH 200       //taille maximale que peut atteindre le serpent
+UP 122              //code du caractere 'z'
+LEFT 113            //code du caractere 'q'
+DOWN 115            //code du caractere 's'
+RIGHT 100           //code du caractere 'd'
+MAXSPEED 200        //nombre de millisecondes de la fonction _sleep pour les déplacements
+C_HEAD_RIGHT '>'    //tête serpent droite
+C_HEAD_LEFT '<'     //tête serpent gauche
+C_HEAD_UP '^'       //tête serpent haut
+C_HEAD_DOWN 'v'     //tête serpent bas
+C_BODY '*'          //corps du serpent
+C_FOOD 'o'          //nourriture
+C_WALL '!'          //murs
+C_EMPTY ' '         //vide
+
+//TYPE STRUCTURE
+TYPE
+    STRUCTURE COORD
+        x : ENTIER
+        y : ENTIER
+    FINSTRUCTURE
+
+
+//DECLARATIONS PROCEDURES
+
+PROCEDURE tryAgain(score, highscore : ENTIER) 
+//BUT : procédure servant à afficher un écran de game over ainsi que le score réalisé par le joueur au cours de la partie, puis lui propose de rejouer
+//ENTREE : score et score
+//SORTIE : écran de game over et choix de recommencer une partie ou non
+
+VAR
+    choice : CARACTERE
+
+DEBUT
+    REPETER
+        ECRIRE "GAME OVER"
+        ECRIRE "Score = ", score  
+        ECRIRE "Try again ? O/N"
+        ECRIRE "Your choice : "  
+        LIRE choice
+        SI (choice <> 'O') ET (choice <> 'N') 
+            ECRIRE("Wrong input, please try again.") 
+        FINSI
+    TANTQUE(choice <> 'O' ET choice <> 'N') 
+
+    SI choice = 'O' ALORS
+        newgame(highscore) 
+    FINSI
+FINPROCEDURE
+     
+ 
+
+PROCEDURE collision(snake : TABLEAU[1..MAXLENGTH] DE COORD ; food : COORD ; gameOver, isFood : BOOLEEN ; ENTIER len) 
+//BUT : détecter une collision entre le serpent et un objet ou les murs
+//ENTREE : coordonnées du serpent et de la nourriture, taille du serpent, booléens isFood et gameOver
+//SORTIE : gameOver devient vrai si un mur ou le corps du serpent sont détectés, isFood devient vrai si la nourriture est détectée, sinon rien
+
+VAR
+    i : ENTIER
+
+DEBUT
+    i <- 0
+
+    SI (snake[0].X = food.x) ET (snake[0].y = food.y) ALORS      //si la tête du serpent rencontre la nourriture alors sa taille augmente de 1 et un nouveau fruit est placé sur le terrain
+        len <- len+1 
+        setFood(food, snake, len) 
+        placeFood(food) 
+        isFood <- VRAI 
+    SINON SI(snake[0].x = 0) OU (snake[0].x = COLS) OU (snake[0].y = 0) OU (snake[0].y = ROWS) ALORS   //si le serpent heurte un mur, il meurt
+        gameOver = VRAI   
+    SINON 
+        POUR i DE 1 A len FAIRE 
+            SI (snake[0].x = snake[i].x) ET (snake[0].y = snake[i].y)        //si la tête du serpent entre en contract avec une partie du corps, il meurt
+                gameOver = VRAI 
+            FINSI
+        FINPOUR
+    FINSI         
+FINPROCEDURE     
+
+PROCEDURE motion(snake : TABLEAU [1..MAXLENGTH] DE COORD ; food : COORD ; gameOver : BOOLEEN ; len, keyPressed, score, score : ENTIER) 
+//BUT: procédure qui fait avancer le serpent selon la touche pressée et augmente le score
+//ENTREE : snake, food, gameover, len, keyPressed, score, score
+//SORTIE : coordonnées x et y du serpent modSIié, incrémentation du score si de la nourriture a été détectée
+    
+VAR
+    isFood : BOOLEEN    //sert à détecter qu'un fruit a été rencontré
+    i, lastX, lastY : ENTIER 
+
+DEBUT
+    i <- 0
+    lastX <- 0
+    lastY <- 0
+    isFood <- FAUX
+
+    //on efface le dernier caractère du serpent
+    gotoxy(snake[len-1].x, snake[len-1].y) 
+    ECRIRE C_EMPTY 
+
+    //on sauvegarde les coordonnées de la queue, au cas où le serpent grandit
+    lastX <- snake[len-1].x 
+    lastY <- snake[len-1].y 
+
+    //on part de la fin du tableau, chaque case prend la valeur de la suivante, jusqu'à la tête
+    POUR i DE 1 A len-1 FAIRE 
+        snake[len-i+1].x <- snake[len-i].x 
+        snake[len-i+1].y <- snake[len-i].y 
+    FINPOUR
+     
+
+    //selon la direction du serpent, on modSIie les coordonnées de la tête (première position du tableau)
+    CASE keyPressed DE
+        UP :
+            snake[0].y <- snake[0].y + 1
+             
+        LEFT :
+            snake[0].x <- snake[0].x + 1
+             
+        DOWN :
+            snake[0].y <- snake[0].y + 1
+             
+        RIGHT :
+            snake[0].x <- snake[0].x +1
+    FINCASDE
+
+    //on verifie la collision
+    collision(snake, food, ptGameOver, ptLen, &isFood) 
+
+    //si un fruit a été rencontré, alors on set les coordonnées de la queue, afin d'éviter les bugs d'affichage puis on incrémente le score de 10 points
+    SI isFood = VRAI ALORS
+        //on set les coordonnées de la nouvelle case occupée du tableau
+        snake[len-1].x <- lastX 
+        snake[len-1].y <- lastY 
+        
+        //on augmente le score de 10
+        score <- score + 10 
+        
+        //si le score actuel est supérieur au meilleur score, alors le meilleur score devient le score actuel
+        SI score > highscore
+            highscore <- score 
+        FINSI
+        
+        //affichage du score
+        gotoxy(0, 21) 
+        ECRIRE "Score = ", score
+        gotoxy(0, 23) 
+        ECRIRE "Highscore =", highscore
+    FINSI
+    
+    //on affiche le serpent
+    placeSnake(snake, len, keyPressed) 
+
+    PAUSE(MAXSPEED)         //mettre le programme en pause
+FINPROCEDURE
+
+PROCEDURE input(snake : TABLEAU[1..MAXLENGTH] DE COORD ; food : COORD ; gameOver : BOOLEEN ; len, lastKey, score, score : ENTIER) 
+//BUT : procédure qui demande à l'utilisateur de saisir une des touches de direction et qui appelle la procédure correspondante
+
+VAR
+    keyPressed : ENTIER      //touche pressée
+
+DEBUT
+    keyPressed = TOUCHEPRESSEE      //entier récupéré lorsqu'une touche est pressée
+    REPETER
+        CASE keyPressed DE 
+            UP :        //'z'
+                SI(lastKey <> DOWN) ALORS                      //on ne peut pas se déplacer dans le sens inverse de l'axe actuel
+                    motion(snake, food, ptGameOver, ptLen, keyPressed, ptScore, highscore) 
+                    lastKey = keyPressed 
+                SINON
+                    motion(snake, food, gameOver, len, lastKey, score, score) 
+                FINSI
+                 
+            LEFT :      //'q'
+                SI(lastKey <> RIGHT)                     //on ne peut pas se déplacer dans le sens inverse de l'axe actuel
+                    motion(snake, food, gameOver, len, lastKey, score, score) 
+                    lastKey = keyPressed 
+                 
+                SINON
+                    motion(snake, food, gameOver, len, lastKey, score, score)
+                FINSI
+                 
+           DOWN :      //'s'
+                SI(lastKey <> UP)                        //on ne peut pas se déplacer dans le sens inverse de l'axe actuel
+                    motion(snake, food, gameOver, len, lastKey, score, score) 
+                    lastKey = keyPressed 
+                 
+                SINON
+                    motion(snake, food, gameOver, len, lastKey, score, score)
+                FINSI 
+                 
+            RIGHT :      //'d'
+                SI(lastKey <> LEFT)                      //on ne peut pas se déplacer dans le sens inverse de l'axe actuel
+                    motion(snake, food, gameOver, len, lastKey, score, score) 
+                    lastKey = keyPressed 
+                 
+                SINON
+                    motion(snake, food, gameOver, len, lastKey, score, score)
+                FINSI 
+            FINCASDE
+    TANTQUE(TOUCHEPRESSEE = 0) ET (gameOver = FAUX) 
+FINPROCEDURE
+
+PROCEDURE placeFood(food : COORD) 
+//BUT : procédure qui place une nourriture sur l'écran
+
+DEBUT
+    gotoxy(food.x, food.y) 
+    ECRIRE C_FOOD 
+FINPROCEDURE
+ 
+
+PROCEDURE placeSnake(snake : TABLEAU[1..MAXLENGTH] DE COORD ; len, keyPressed : ENTIER) 
+//BUT : procédure qui place le serpent sur l'écran
+
+VAR
+    i : ENTIER
+
+DEBUT
+    i <- 0
+
+    POUR i DE 1 A len FAIRE
+        gotoxy(snake[i].x, snake[i].y) 
+        SI i = 0 ALORS                             //tête
+            CAS keyPressed DE
+                UP :
+                    ECRIRE C_HEAD_UP 
+                     
+                LEFT :
+                    ECRIRE C_HEAD_LEFT
+                     
+                DOWN :
+                    ECRIRE C_HEAD_DOWN
+                     
+                RIGHT :
+                    ECRIRE C_HEAD_RIGHT 
+            FINCASDE                   
+        SINON                                    //corps
+            ECRIRE C_BODY
+        FINSI
+    FINPOUR 
+FINPROCEDURE
+
+PROCEDURE gotoxy(x, y : ENTIER) 
+//BUT : placer le curseur de la console sur une position donnée
+
+VAR
+     i : ENTIER
+     coord : COORD
+
+DEBUT
+    i <- 0
+    coord.x <- 0
+    coord.y <- 0
+
+    coord.x <- x 
+    coord.y <- y 
+
+    POSITIONCURSEUR(coord.x, coord.y) 
+FINPROCEDURE
+ 
+
+PROCEDURE display(t : TABLEAU DE [1..COLS][1..ROWS] DE ENTIER ; score, score : ENTIER) 
+//BUT : procédure qui affiche un tableau t
+//ENTREE : tableau t rempli
+//SORTIE : affichage du tableau
+
+VAR
+    i, j : ENTIER
+
+DEBUT
+    i <- 0
+    j <- 0
+
+    POUR j DE 1 A ROWS FAIRE
+        POUR i DE 1 A COLS FAIRE 
+            SI t[i][j] = 1 ALORS
+                ECRIRE C_WALL           //murs
+            SINON
+                ECRIRE C_EMPTY          //vide
+            FINSI
+        FINPOUR
+    FINPOUR
+     
+
+    //affichage du score
+    gotoxy(0, 21) 
+    ECRIRE "Score = ", score 
+    gotoxy(0, 23) 
+    ECRIRE "Highscore = ", score
+FINPROCEDURE
+
+PROCEDURE initArray(t : TABLEAU[1..COLS][1..ROWS] DE ENTIER) 
+//BUT : procédure qui initialise un tableau d'entiers
+//ENTREE : tableau t vide
+//SORTIE : tableau t rempli de 0 et de 1
+
+VAR
+    i, j : ENTIER
+
+DEBUT
+    POUR i DE 1 A COLS FAIRE 
+        POUR j DE 1 A ROWS FAIRE 
+            SI (j =) OU (j = ROWS) ALORS
+                t[i][j] <- 1 
+            SINON SI (i = 1) OU (i = COLS) ALORS
+                t[i][j] <- 1 
+            SINON
+                t[i][j] <- 0 
+            FINSI
+        FINPOUR
+    FINPOUR
+FINPROCEDURE
+
+PROCEDURE setFood( food : COORD ; snake : TABLEAU[1..MAXLENGTH] DE COORD ; len : ENTIER) 
+//BUT : procédure qui set aléatoirement les attributs x et y de la nourriture
+//ENTREE : food et snake
+//SORTIE : x et y de food modSIiés
+
+VAR
+    i, newX, newY : ENTIER 
+    equal : BOOLEEN         //booleen pour vérifier si les coordonnées de food sont identiques aux coordonnées d'une partie du serpent
+
+DEBUT
+    i <- 0
+    newX <- 0
+    newY <- 0
+    equal <- VRAI
+
+    //boucle tant que les nouvelles coordonnées ne sont pas égales à la position d'un mur ou du serpent
+    
+    REPETER
+        newX <- NOMBREALEATOIRE(COLS)+1
+        newY <- NOMBREALEATOIRE(ROWS)+1 
+        REPETER
+            SI (newX = snake[i].X) ET (newY = snake[i].Y) OU (newX <= 0) OU (newX => COLS-1) OU (newY <= 0) OU (newY => ROWS-1) ALORS
+                equal <- VRAI 
+            SINON
+                equal <- FAUX 
+            FINSI
+            i = i + 1
+        TANTQUE i < len
+    TANTQUE equal = VRAI
+
+    food.x <- newX 
+    food.y <- newY 
+FINPROCEDURE
+
+
+PROCEDURE setSnake(snake : TABLEAU [1..MAXLENGTH] DE COORD ; x, y, len : ENTIER) 
+//BUT : procédure qui set les x et y des cellules du tableau snake, selon la taille du serpent
+//ENTREE : tableau snake
+//SORTIE : tableau rempli
+
+VAR
+    i : ENTIER
+
+DEBUT
+    POUR i DE 1 A len FAIRE 
+        snake[i].x <- x-i 
+        snake[i].y <- y 
+    FINPOUR
+FINPROCEDURE
+ 
+
+PROCEDURE newgame(score : ENTIER)
+//BUT : procédure qui démarre une nouvelle partie et appelle les procédures nécessaires au déroulement de la partie
+
+VAR
+    gameOver : BOOLEEN                      //booleen pour mettre fin à la partie
+    snake : TABLEAU[1..MAXLENGTH] DE COORD                //serpent => type structuré
+    food : COORD                            //nourriture => type structuré
+    t : TABLEAU[1..COLS][1..ROWS] DE COORD  //tableau
+    len, lastKey, score : ENTIER                            //len = taille du serpent
+                                                            //lastKey = dernière touche pressée, de base 'd', placé ici pour éviter qu'il soit réinitialisé à chaque déplacement
+
+DEBUT
+    len <- SNAKE_LEN
+    lastKey <- RIGHT
+    score <- 0
+
+    //on set la position du serpent puis de la nourriture
+    setSnake(snake, SNAKE_X, SNAKE_Y, len) 
+    setFood(food, snake, len) 
+
+    //initialisation & affichage    
+    initArray(t)                            //initialiser tableau
+    display(t, score, highscore)          //afficher tableau
+    placeSnake(snake, len, RIGHT)           //placer serpent sur l'écran
+    placeFood(food)                         //placer nourriture sur l'écran
+
+    //lancement du jeu
+    REPETER
+        input(snake, &food, &gameOver, &len, &lastKey, &score, highscore) //tant que la partie n'est pas finie, l'utilisateur peut saisir une touche
+    TANTQUE(gameOver = FAUX) 
+
+    tryAgain(&score, highscore) 
+FINPROCEDURE
+
+//PROGRAMME PRINCIPAL
+
+VAR
+    choice, score : ENTIER
+
+DEBUT
+    score <- 0
+    REPETER
+        ECRIRE "1 = New game"
+        ECRIRE "2 = Rules of the game"
+        ECRIRE "0 = Quit"
+        ECRIRE "Your choice = "
+        LIRE choice
+        CAS choice DE
+            0 :
+                ECRIRE "Thank you for playing. See you next time !"
+            1 :
+                newgame(score) 
+            DEFAUT :
+                ECRIRE "Wrong input, please try again."
+        FINCASDE
+    TANTQUE choice <> 0
+FIN
